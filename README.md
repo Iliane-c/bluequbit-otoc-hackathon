@@ -198,6 +198,19 @@ How each method works:
   circuits, [`otoc/pauli_propagation.py`](otoc/pauli_propagation.py), and tested it against
   exact state vectors.
 
+In practice, the choice comes down to three questions about the circuit:
+
+```mermaid
+flowchart TD
+    A["Circuit to simulate"] --> B{"Fits in memory?<br/>n ≲ 30–34 qubits"}
+    B -- yes --> SV["<b>Exact state vector</b><br/>cpu / gpu<br/>S1, S3, G1"]
+    B -- no --> C{"Geometry?"}
+    C -- "1D chain" --> MPS["<b>MPS</b>, bond dimension χ<br/>entanglement stays low across cuts<br/>G2"]
+    C -- "2D grid" --> D{"Gate set?"}
+    D -- "mostly Clifford" --> PP["<b>Pauli path</b>, threshold δ<br/>Clifford gates do not branch<br/>G3"]
+    D -- "Haar-random" --> HARD["<b>No raw method converges</b><br/>approximate, then calibrate<br/>G4"]
+```
+
 A recent BlueQubit benchmark, [Mazumder et al., arXiv:2607.09882](https://arxiv.org/abs/2607.09882),
 measures these trade-offs across platforms. Three results bear on this challenge:
 
@@ -257,6 +270,10 @@ of time to implement it, so the submitted G4 results do not use it. Its key idea
 asking the simulator for raw accuracy and instead **calibrate its bias** against circuits whose
 answer is known.
 
+<p align="center">
+  <img src="docs/g4_layout.svg" alt="G4 layout: 22 edge qubits simulated with Pauli paths and a fitted correction, 16 interior qubits predicted as 0, last-column qubits also using their neighbour, butterfly on qubit 0" width="760">
+</p>
+
 1. **Split the qubits by geometry.** Of the 38 qubits, 22 lie on the edge of the device: the
    border of the 6×6 grid plus the two extra qubits, 36 and 37. The other 16 form the 4×4
    interior.
@@ -274,6 +291,26 @@ answer is known.
 4. **Set the 16 interior predictions to zero.** In the calibration circuits, deep-interior
    qubits are almost fully scrambled and their exact values stay close to 0. Predicting 0 there
    costs little correlation and saves the most expensive jobs.
+
+The full pipeline:
+
+```mermaid
+flowchart LR
+    subgraph CAL["1 · Calibration (local, cheap)"]
+        C1["16 small circuits<br/>with the same structure as G4"] --> C2["Exact values<br/>(state vector)"]
+        C1 --> C3["Pauli path<br/>δ = 3×10⁻⁴"]
+        C2 --> C4["Fit one correction<br/>per qubit type"]
+        C3 --> C4
+    end
+    subgraph RUN["2 · G4 on BlueQubit"]
+        E1["22 edge qubits<br/>Pauli path, δ = 3×10⁻⁵"] --> E2["Raw, biased estimates"]
+        I1["16 interior qubits"] --> I2["Predict 0<br/>(almost fully scrambled)"]
+    end
+    C4 --> F["Apply correction<br/>last column: + raw value of the neighbour"]
+    E2 --> F
+    F --> OUT["G4 submission<br/>38 values"]
+    I2 --> OUT
+```
 
 This is the classical counterpart of *error mitigation* on quantum hardware. A cheap, biased
 estimator plus a correction learned on circuits we can solve exactly beats a more expensive
@@ -309,6 +346,7 @@ scripts/
   combine_results.py       merge or negate result files
   cancel_jobs.py           cancel orphaned jobs
 tests/                     unit tests (fake client, exact state-vector reference)
+docs/                      figures used in this README
 results/                   submitted CSV files
 ```
 
