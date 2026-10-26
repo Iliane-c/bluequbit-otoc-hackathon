@@ -1,4 +1,4 @@
-# Simulating Quantum Echoes Classically
+# Simulating quantum echoes classically
 
 ### OTOC estimation on 30–38-qubit circuits: BlueQubit × DuQuantum 2026 hackathon
 
