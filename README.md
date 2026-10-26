@@ -52,18 +52,18 @@ Take two operators, each acting on a single qubit:
 - $M$ is the **measurement**, for example $Z$ on qubit $q$.
 
 Evolve the butterfly in the Heisenberg picture through the circuit $U$:
-$B(t) = U^\dagger B\, U$. At $t = 0$, $B$ and $M$ act on different qubits and commute. As the
+$B(t) = U^\dagger B U$. At $t = 0$, $B$ and $M$ act on different qubits and commute. As the
 circuit runs, $B(t)$ grows into a sum of longer and longer Pauli strings. Once its support
 reaches qubit $q$, it stops commuting with $M$.
 
 The OTOC measures this loss of commutativity:
 
-$$
-C(t) \;=\; \langle\, B(t)^\dagger\, M^\dagger\, B(t)\, M \,\rangle ,
+```math
+C(t) = \langle B(t)^\dagger M^\dagger B(t) M \rangle ,
 \qquad
-\operatorname{Re} C(t) \;=\; 1 - \tfrac12\,\big\langle\, |[B(t), M]|^2 \,\big\rangle
-\quad\text{(for Pauli } B, M\text{)} .
-$$
+\mathrm{Re}\, C(t) = 1 - \frac{1}{2} \big\langle |[B(t), M]|^2 \big\rangle
+\quad \text{(for Pauli } B, M \text{)}
+```
 
 - **$C \approx 1$**: the perturbation has not reached qubit $q$ yet. The qubit lies outside the
   butterfly's light cone.
@@ -75,7 +75,7 @@ perturbation spreads through the device.
 
 ### Why "out of time order"?
 
-Write the correlator out in full: $U^\dagger B^\dagger U\, M^\dagger\, U^\dagger B U\, M$. The
+Write the correlator out in full: $U^\dagger B^\dagger U M^\dagger U^\dagger B U M$. The
 time arguments alternate $t, 0, t, 0$, so the system is not probed in chronological order. An
 ordinary experiment that only moves forward in time cannot measure this directly. It needs
 **time reversal**: run the circuit forward, perturb, run it backward.
