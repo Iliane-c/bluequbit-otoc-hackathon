@@ -225,7 +225,7 @@ The full chronological log, 31 scripts, is in [`experiments/`](experiments/READM
 | G1 | exact state vector, GPU | 30 qubits but depth 384: GPU, with all 30 jobs submitted asynchronously. |
 | G2 | MPS, χ = 16 | 1D chain with the butterfly in the middle: the natural MPS setting. I measured the cost of one job at χ = 8…64 first. |
 | G3 | MPS, with Pauli path (δ = 10⁻⁴) where available | Clifford grid: Pauli paths are accurate, but slow near the butterfly. I scheduled qubits from far to near and kept MPS for the rest. |
-| G4 | MPS, χ = 32 (χ = 64 on witness qubits) | Haar-random 2D grid: the hardest case. No method converged within the budget. |
+| G4 | MPS, χ = 32 (χ = 64 on witness qubits) | Haar-random 2D grid: the hardest case. No method converged within the budget. A calibrated approach, described in section 7, would do better. |
 
 ## 7. Findings
 
@@ -249,6 +249,36 @@ The full chronological log, 31 scripts, is in [`experiments/`](experiments/READM
 
 **With more time,** I would rerun G3 and G4 on the GPU backends (`mps.gpu`, GPU Pauli paths)
 at finer δ and larger χ. Mazumder et al. show that this is exactly where GPUs pull ahead.
+
+### A G4 strategy that works (identified, not implemented)
+
+After the hackathon I identified a G4 strategy that works far better than plain MPS. I ran out
+of time to implement it, so the submitted G4 results do not use it. Its key idea is to stop
+asking the simulator for raw accuracy and instead **calibrate its bias** against circuits whose
+answer is known.
+
+1. **Split the qubits by geometry.** Of the 38 qubits, 22 lie on the edge of the device: the
+   border of the 6×6 grid plus the two extra qubits, 36 and 37. The other 16 form the 4×4
+   interior.
+2. **Simulate the edge qubits approximately, but with a finer threshold.** Running Pauli-path
+   propagation on the 22 edge qubits at δ = 3 × 10⁻⁵ keeps much more of the weak, interfering
+   signal than δ = 10⁻⁴, which truncated everything to zero.
+3. **Correct the simulator's bias with calibration circuits.** I would generate 16 smaller
+   circuits with the same structure, small enough to simulate exactly, and run them through the
+   same approximate pipeline. Comparing the approximate and exact answers gives a separate
+   linear correction for each type of qubit (corner, edge, last column, extra row).
+   - The calibration is run locally at δ = 3 × 10⁻⁴, which reproduces the platform's behaviour
+     at a fraction of the cost.
+   - For qubits in the last column, the correction also uses the raw value of the neighbouring
+     qubit, which carries part of the signal that truncation removes.
+4. **Set the 16 interior predictions to zero.** In the calibration circuits, deep-interior
+   qubits are almost fully scrambled and their exact values stay close to 0. Predicting 0 there
+   costs little correlation and saves the most expensive jobs.
+
+This is the classical counterpart of *error mitigation* on quantum hardware. A cheap, biased
+estimator plus a correction learned on circuits we can solve exactly beats a more expensive
+estimator used raw. Because the score is a correlation, the method only needs to rank the
+qubits correctly; it does not need to get absolute values right.
 
 ---
 
